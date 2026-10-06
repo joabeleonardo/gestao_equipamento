@@ -2,6 +2,8 @@ from sqlmodel import SQLModel, Field, Relationship
 from enum import Enum
 from datetime import date, datetime
 from typing import Optional
+from pydantic import BaseModel, EmailStr
+
 
 
 class Usuario(SQLModel,table=True):
@@ -78,3 +80,16 @@ class Emprestimo(EmprestimoBase, table=True):
 
 class EmprestimoPublico(EmprestimoBase):
     pass
+
+
+################################################################################################################################ 
+# autenticação de usuario
+class UsuarioLogin(BaseModel):
+    usuario: EmailStr
+    senha: str
+
+class UsuarioLogado(BaseModel):
+    id: int
+    nome: str
+    roles:list[str]
+
