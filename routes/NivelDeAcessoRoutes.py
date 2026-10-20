@@ -6,8 +6,11 @@ from entidades.models import NivelDeAcesso
 from dependencies.database import database
 from controllers import NivelDeAcessoController
 
+from dependencies.auth_utils import RoleChecker
+
 #Prefixo para não precisar ficar colocando /niveis-acesso toda vez
-nivel_acesso_router = APIRouter(prefix="/niveis-acesso", tags=["Níveis de Acesso"])
+nivel_acesso_router = APIRouter(prefix="/niveis-acesso", tags=["Níveis de Acesso"],
+                                dependencies=[Depends(RoleChecker(["Administrador","Admin"]))]) #rolechecker para testar permissões do perfil)
 
 @nivel_acesso_router.post("/", response_model=NivelDeAcesso, status_code=status.HTTP_201_CREATED)
 def inserir(nivel: NivelDeAcesso, db: Session = Depends(database.get_db)):

@@ -3,13 +3,15 @@ from sqlmodel import Session
 from dependencies.database import database
 from entidades.models import Usuario
 from controllers import UsuarioController
+from dependencies.auth_utils import RoleChecker
 
 from typing import List
 
 
-usuario_router = APIRouter()
+usuario_router = APIRouter(prefix="/usuario", tags=["Usuarios"])
 
-@usuario_router.post("/usuario", response_model=Usuario,status_code=status.HTTP_201_CREATED)
+@usuario_router.post("", response_model=Usuario,status_code=status.HTTP_201_CREATED,
+                     dependencies=[Depends(RoleChecker(["Administrador","Admin","Gestor"]))])
 def cadastrar_usuario(dados : Usuario, db:Session = Depends(database.get_db)):
     try:
         return UsuarioController.cadastrar_usuario(db, dados)
@@ -21,7 +23,8 @@ def cadastrar_usuario(dados : Usuario, db:Session = Depends(database.get_db)):
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,detail=str(e))
 
 #LISTA USUARIS
-@usuario_router.get("/usuarios", response_model=List[Usuario], status_code=status.HTTP_200_OK)
+@usuario_router.get("/usuarios", response_model=List[Usuario], status_code=status.HTTP_200_OK,
+                    dependencies=[Depends(RoleChecker(["Administrador","Admin","Gestor"]))])
 def buscar_usuario(db: Session = Depends(database.get_db)):
     try:
         return UsuarioController.buscar_usuario(db)
@@ -29,7 +32,8 @@ def buscar_usuario(db: Session = Depends(database.get_db)):
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 #busca usuario por id
-@usuario_router.get("/usuario/{id_usuario}", response_model=Usuario, status_code=status.HTTP_200_OK)
+@usuario_router.get("/{id_usuario}", response_model=Usuario, status_code=status.HTTP_200_OK,
+                    dependencies=[Depends(RoleChecker(["Administrador","Admin","Gestor"]))])
 def buscar_usuario_por_id(id_usuario: int, db: Session = Depends(database.get_db)):
     try:
         return UsuarioController.buscar_usuario_por_id(db, id_usuario)
@@ -40,7 +44,8 @@ def buscar_usuario_por_id(id_usuario: int, db: Session = Depends(database.get_db
 
 
 #Aletrar dados do usuario
-@usuario_router.put("/usuario/{id_usuario}", response_model=Usuario, status_code=status.HTTP_200_OK)
+@usuario_router.put("/{id_usuario}", response_model=Usuario, status_code=status.HTTP_200_OK,
+                    dependencies=[Depends(RoleChecker(["Administrador","Admin","Gestor"]))])
 def atualizar_usuario(id_usuario: int, dados: Usuario, db: Session = Depends(database.get_db)):
     try:
         return UsuarioController.atualizar_usuario(db, id_usuario, dados)
@@ -52,7 +57,8 @@ def atualizar_usuario(id_usuario: int, dados: Usuario, db: Session = Depends(dat
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     
 
-@usuario_router.delete("/usuario/{id_usuario}", status_code=status.HTTP_204_NO_CONTENT)
+@usuario_router.delete("/{id_usuario}", status_code=status.HTTP_204_NO_CONTENT,
+                       dependencies=[Depends(RoleChecker(["Administrador","Admin"]))])
 def deletar_usuario(id_usuario: int, db: Session = Depends(database.get_db)):
     try:
         UsuarioController.deletar_usuario(db, id_usuario)

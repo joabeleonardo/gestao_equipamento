@@ -6,6 +6,7 @@ from unittest.mock import patch, MagicMock
 from routes.UsuarioRoutes import usuario_router
 from entidades.models import Usuario
 from dependencies.database import database
+from dependencies.auth_utils import oauth2_scheme
 
 # 1. Configuração do App de Teste
 app = FastAPI()
@@ -14,6 +15,8 @@ app.include_router(usuario_router)
 
 def override_get_db():
     yield MagicMock()
+
+app.dependency_overrides[oauth2_scheme] = lambda: "token-de-mentira"
 
 app.dependency_overrides[database.get_db] = override_get_db
 
@@ -35,8 +38,11 @@ MOCK_USUARIO_RESPOSTA = Usuario(
 # ==========================================
 # TESTES DA ROTA: POST /usuarios
 # ==========================================
+@patch("dependencies.auth_utils.validar_token")
 @patch("routes.UsuarioRoutes.UsuarioController.cadastrar_usuario")
-def test_cadastro_usuario_sucesso(mock_cadastrar):
+def test_cadastro_usuario_sucesso(mock_cadastrar, mock_validar_token):
+    mock_validar_token.return_value = {"sub": "1","roles": ["Administrador"]}
+
     mock_cadastrar.return_value = MOCK_USUARIO_RESPOSTA
     
     
@@ -46,8 +52,11 @@ def test_cadastro_usuario_sucesso(mock_cadastrar):
     assert response.json()["nome"] == "Carlos Almeida"
     assert "id_usuario" in response.json()
 
+@patch("dependencies.auth_utils.validar_token")
 @patch("routes.UsuarioRoutes.UsuarioController.cadastrar_usuario")
-def test_cadastro_usuario_erro_integridade(mock_cadastrar):
+def test_cadastro_usuario_erro_integridade(mock_cadastrar,mock_validar_token):
+
+    mock_validar_token.return_value = {"sub": "1","roles": ["Administrador"]}
     mock_cadastrar.side_effect = ValueError("Usuario indisponivel")
     
     
@@ -59,12 +68,15 @@ def test_cadastro_usuario_erro_integridade(mock_cadastrar):
 # ==========================================
 # TESTES DA ROTA: GET /usuarios
 # ==========================================
+@patch("dependencies.auth_utils.validar_token")
 @patch("routes.UsuarioRoutes.UsuarioController.buscar_usuario")
-def test_buscar_todos_usuarios_sucesso(mock_buscar):
+def test_buscar_todos_usuarios_sucesso(mock_buscar, mock_validar_token):
+
+    mock_validar_token.return_value = {"sub": "1","roles": ["Administrador"]}
     mock_buscar.return_value = [MOCK_USUARIO_RESPOSTA]
     
     # ALTERADO: Removida a barra final
-    response = client.get("/usuarios")
+    response = client.get("usuario/usuarios")
     
     assert response.status_code == 200
     assert isinstance(response.json(), list)
@@ -73,8 +85,12 @@ def test_buscar_todos_usuarios_sucesso(mock_buscar):
 # ==========================================
 # TESTES DA ROTA: GET /usuarios/{id}
 # ==========================================
+@patch("dependencies.auth_utils.validar_token")
 @patch("routes.UsuarioRoutes.UsuarioController.buscar_usuario_por_id")
-def test_buscar_usuario_por_id_sucesso(mock_buscar_id):
+def test_buscar_usuario_por_id_sucesso(mock_buscar_id, mock_validar_token):
+
+    mock_validar_token.return_value = {"sub": "1","roles": ["Administrador"]}
+    
     mock_buscar_id.return_value = MOCK_USUARIO_RESPOSTA
     
     response = client.get("/usuario/3")
@@ -82,8 +98,12 @@ def test_buscar_usuario_por_id_sucesso(mock_buscar_id):
     assert response.status_code == 200
     assert response.json()["id_usuario"] == 3
 
+@patch("dependencies.auth_utils.validar_token")
 @patch("routes.UsuarioRoutes.UsuarioController.buscar_usuario_por_id")
-def test_buscar_usuario_por_id_nao_encontrado(mock_buscar_id):
+def test_buscar_usuario_por_id_nao_encontrado(mock_buscar_id, mock_validar_token):
+
+    mock_validar_token.return_value = {"sub": "1","roles": ["Administrador"]}
+
     mock_buscar_id.side_effect = KeyError("Usuário de ID 999 não encontrado.")
     
     response = client.get("/usuario/999")
@@ -94,8 +114,11 @@ def test_buscar_usuario_por_id_nao_encontrado(mock_buscar_id):
 # ==========================================
 # TESTES DA ROTA: PUT /usuarios/{id}
 # ==========================================
+@patch("dependencies.auth_utils.validar_token")
 @patch("routes.UsuarioRoutes.UsuarioController.atualizar_usuario")
-def test_atualizar_usuario_sucesso(mock_atualizar):
+def test_atualizar_usuario_sucesso(mock_atualizar,mock_validar_token):
+
+    mock_validar_token.return_value = {"sub": "1","roles": ["Administrador"]}
     mock_atualizar.return_value = MOCK_USUARIO_RESPOSTA
     
     response = client.put("/usuario/3", json=MOCK_USUARIO_PAYLOAD)
@@ -106,16 +129,21 @@ def test_atualizar_usuario_sucesso(mock_atualizar):
 # ==========================================
 # TESTES DA ROTA: DELETE /usuarios/{id}
 # ==========================================
+@patch("dependencies.auth_utils.validar_token")
 @patch("routes.UsuarioRoutes.UsuarioController.deletar_usuario")
-def test_deletar_usuario_sucesso(mock_deletar):
+def test_deletar_usuario_sucesso(mock_deletar,mock_validar_token):
+
+    mock_validar_token.return_value = {"sub": "1","roles": ["Administrador"]}
     mock_deletar.return_value = None 
     
     response = client.delete("/usuario/3")
     
     assert response.status_code == 204 
-
+@patch("dependencies.auth_utils.validar_token")
 @patch("routes.UsuarioRoutes.UsuarioController.deletar_usuario")
-def test_deletar_usuario_nao_encontrado(mock_deletar):
+def test_deletar_usuario_nao_encontrado(mock_deletar,mock_validar_token):
+
+    mock_validar_token.return_value = {"sub": "1","roles": ["Administrador"]}
     mock_deletar.side_effect = KeyError("Usuário de ID 999 não encontrado.")
     
     response = client.delete("/usuarios/999")

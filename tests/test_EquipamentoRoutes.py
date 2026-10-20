@@ -3,10 +3,13 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock
 
+
 # verifica se os caminhos de importação estão corretos
 from routes.EquipamentoRoutes import equipamento_router
 from entidades.models import Equipamento, EnumEquipamento
 from dependencies.database import database
+from dependencies.auth_utils import oauth2_scheme
+
 
 # Configuração do App de Teste
 app = FastAPI()
@@ -18,6 +21,7 @@ def override_get_db():
     yield MagicMock()
 
 app.dependency_overrides[database.get_db] = override_get_db
+app.dependency_overrides[oauth2_scheme] = lambda: "token-de-mentira"
 
 client = TestClient(app)
 
@@ -40,24 +44,41 @@ MOCK_EQUIPAMENTO_RESPOSTA = Equipamento(
 # ==========================================
 # TESTES DA ROTA: POST /equipamentos
 # ==========================================
+@patch("dependencies.auth_utils.validar_token")
 @patch("routes.EquipamentoRoutes.EquipamentoController.cadastrar_equipamento")
-def test_cadastro_equipamento_sucesso(mock_cadastrar):
-    # Simula o retorno de sucesso do controller
+def test_cadastro_equipamento_sucesso(mock_cadastrar,mock_validar_token):
+    # Simula um usuário Administrador autenticado
+    mock_validar_token.return_value = {"sub": "1","roles": ["Administrador"]}
+
+    # Simula o cadastro bem-sucedido
     mock_cadastrar.return_value = MOCK_EQUIPAMENTO_RESPOSTA
-    
-    response = client.post("/equipamentos", json=MOCK_EQUIPAMENTO_PAYLOAD)
-    
+
+    response = client.post("/equipamentos",json=MOCK_EQUIPAMENTO_PAYLOAD)
+
     assert response.status_code == 201
     assert response.json()["patrimonio"] == "PTR-1001"
     assert "id_equipamento" in response.json()
 
+
+@patch("dependencies.auth_utils.validar_token")
 @patch("routes.EquipamentoRoutes.EquipamentoController.cadastrar_equipamento")
-def test_cadastro_equipamento_erro_categoria_inexistente(mock_cadastrar):
-    # Simula o erro ValueError no controller
-    mock_cadastrar.side_effect = ValueError("A CATEGORIA INFORMADA NÃO EXISTE.")
-    
-    response = client.post("/equipamentos", json=MOCK_EQUIPAMENTO_PAYLOAD)
-    
+def test_cadastro_equipamento_erro_categoria_inexistente(
+    mock_cadastrar,
+    mock_validar_token
+):
+    # Simula um usuário Administrador autenticado
+    mock_validar_token.return_value = {"sub": "1","roles": ["Administrador"]}
+
+    # Simula o erro de categoria inexistente no controller
+    mock_cadastrar.side_effect = ValueError(
+        "A CATEGORIA INFORMADA NÃO EXISTE."
+    )
+
+    response = client.post(
+        "/equipamentos",
+        json=MOCK_EQUIPAMENTO_PAYLOAD
+    )
+
     assert response.status_code == 400
     assert response.json()["detail"] == "A CATEGORIA INFORMADA NÃO EXISTE."
 
@@ -98,8 +119,12 @@ def test_buscar_equipamento_por_id_nao_encontrado(mock_buscar_id):
 # ==========================================
 # TESTES DA ROTA: PUT /equipamentos/{id}
 # ==========================================
+@patch("dependencies.auth_utils.validar_token")
 @patch("routes.EquipamentoRoutes.EquipamentoController.atualizar_equipamento")
-def test_atualizar_equipamento_sucesso(mock_atualizar):
+def test_atualizar_equipamento_sucesso(mock_atualizar,mock_validar_token):
+
+    mock_validar_token.return_value = {"sub":"1", "roles":["Administrador"]}
+    
     mock_atualizar.return_value = MOCK_EQUIPAMENTO_RESPOSTA
     
   
@@ -111,18 +136,53 @@ def test_atualizar_equipamento_sucesso(mock_atualizar):
 # ==========================================
 # TESTES DA ROTA: DELETE /equipamentos/{id}
 # ==========================================
+@patch("dependencies.auth_utils.validar_token")
 @patch("routes.EquipamentoRoutes.EquipamentoController.deletar_equipamento")
-def test_deletar_equipamento_sucesso(mock_deletar):
-    mock_deletar.return_value = None # Deletar não retorna nada
+def test_deletar_equipamento_sucesso(mock_deletar,mock_validar_token):
+
+    mock_validar_token.return_value = {"sub": "1","roles": ["Administrador"]}
+
+    mock_deletar.return_value = MOCK_EQUIPAMENTO_RESPOSTA #None # Deletar não retorna nada
     
     response = client.delete("/equipamentos/1")
     
     assert response.status_code == 204 
 
+@patch("dependencies.auth_utils.validar_token")
 @patch("routes.EquipamentoRoutes.EquipamentoController.deletar_equipamento")
-def test_deletar_equipamento_nao_encontrado(mock_deletar):
+def test_deletar_equipamento_nao_encontrado(mock_deletar,mock_validar_token):
+
+    mock_validar_token.return_value = {"sub": "1","roles": ["Administrador"]}
+    
     mock_deletar.side_effect = KeyError("Equipamento de ID 999 não encontrado.")
     
     response = client.delete("/equipamentos/999")
     
     assert response.status_code == 404
+
+
+# ==========================================
+# testa validação do perfil do user
+# ==========================================
+@patch("dependencies.auth_utils.validar_token")
+@patch("routes.EquipamentoRoutes.EquipamentoController.cadastrar_equipamento")
+def test_cadastro_equipamento_sucesso_administrador(mock_cadastrar, mock_validar_token):
+    # Simula que quem está acessando tem o crachá de Administrador
+    mock_validar_token.return_value = {"sub": 1, "roles": ["Administrador"]}
+    
+    mock_cadastrar.return_value = MOCK_EQUIPAMENTO_RESPOSTA
+    
+    response = client.post("/equipamentos/", json=MOCK_EQUIPAMENTO_PAYLOAD)
+    
+    assert response.status_code == 201
+
+@patch("dependencies.auth_utils.validar_token")
+def test_cadastro_equipamento_acesso_negado_usuario_comum(mock_validar_token):
+    # Simula um usuário comum tentando acessar a rota de Administrador
+    mock_validar_token.return_value = {"sub": 2, "roles": ["Solicitante"]}
+    
+    response = client.post("/equipamentos/", json=MOCK_EQUIPAMENTO_PAYLOAD)
+    
+    # O RoleChecker deve interceptar e retornar 403 Forbidden
+    assert response.status_code == 403
+    assert "Acesso negado" in response.json()["detail"]

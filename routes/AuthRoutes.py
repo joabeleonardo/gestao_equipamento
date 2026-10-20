@@ -6,7 +6,7 @@ from dependencies.database import database
 from controllers import AuthController
 
 
-auth_router = APIRouter()
+auth_router = APIRouter(prefix="/auth", tags=["Auth"])
 
 @auth_router.post("/auth/login")
 def usuario_login(credenciais:UsuarioLogin,db:Session = Depends(database.get_db)):

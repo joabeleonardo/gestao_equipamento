@@ -3,12 +3,15 @@ from sqlmodel import Session
 from dependencies.database import database
 from entidades.models import Equipamento, EquipamentoPublico
 from controllers import EquipamentoController   
+from dependencies.auth_utils import RoleChecker
 
 
-equipamento_router = APIRouter()
+
+equipamento_router = APIRouter(prefix="/Equipamentos", tags=["Equipamentos"])
 
 
-@equipamento_router.post("/equipamentos", response_model=Equipamento,status_code=status.HTTP_201_CREATED)
+@equipamento_router.post("/equipamentos", response_model=Equipamento,status_code=status.HTTP_201_CREATED,
+                         dependencies=[Depends(RoleChecker(["Administrador","Admin"]))]) #rolechecker para testar permissões do perfil
 def cadastro_equipamento(dados : EquipamentoPublico, db:Session = Depends(database.get_db)):
     try: 
         return EquipamentoController.cadastrar_equipamento(db, dados)
@@ -42,7 +45,8 @@ def buscar_equipamento_por_id(id_equipamento: int, db: Session = Depends(databas
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     
 
-@equipamento_router.put("/equipamentos/{id_equipamento}", response_model=Equipamento)
+@equipamento_router.put("/equipamentos/{id_equipamento}", response_model=Equipamento,
+                        dependencies=[Depends(RoleChecker(["Administrador","Admin"]))]) #rolechecker para testar permissões do perfil)
 def atualizar_equipamento(id_equipamento: int, dados: Equipamento, db: Session = Depends(database.get_db)):
     try:
         return EquipamentoController.atualizar_equipamento(db, id_equipamento, dados)
@@ -54,7 +58,8 @@ def atualizar_equipamento(id_equipamento: int, dados: Equipamento, db: Session =
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     
 
-@equipamento_router.delete("/equipamentos/{id_equipamento}", status_code=status.HTTP_204_NO_CONTENT)
+@equipamento_router.delete("/equipamentos/{id_equipamento}", status_code=status.HTTP_204_NO_CONTENT,
+                           dependencies=[Depends(RoleChecker(["Administrador","Admin"]))]) #rolechecker para testar permissões do perfil)
 def deletar_equipamento(id_equipamento: int, db: Session = Depends(database.get_db)):
     try:
         EquipamentoController.deletar_equipamento(db, id_equipamento)
