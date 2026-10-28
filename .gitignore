@@ -1,14 +1,18 @@
 # Segredos e configurações locais
 .env
 **/.env
+!.env.example
+!**/.env.example
 
 # Ambientes virtuais Python
 app/Include/
 app/Lib/
 app/Scripts/
 app/pyvenv.cfg
+.venv/
+venv/
 
-# Arquivos temporários do Python e testes
+# Arquivos temporários Python e testes
 __pycache__/
 *.py[cod]
 .pytest_cache/
