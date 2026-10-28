@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Equipamentos — Cadê o equipamento?</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="demo" id="demo" hidden>Modo demonstração: os dados ficam só neste navegador.</div>
+<header class="topo">
+  <strong>Cadê o equipamento?</strong>
+  <div class="quem"><span id="nome"></span><button class="btn" id="sair">Sair</button></div>
+</header>
+<nav class="abas" id="abas" aria-label="Navegação principal"></nav>
+<main class="pagina">
+  <div class="grade-user">
+    <section class="painel" aria-labelledby="t-cat">
+      <div class="painel-topo">
+        <h2 id="t-cat">Equipamentos</h2>
+        <input class="busca" id="busca" type="search" placeholder="Buscar por nome, marca ou patrimônio" aria-label="Buscar equipamento">
+      </div>
+      <div class="catalogo" id="catalogo"></div>
+    </section>
+    <section class="painel" aria-labelledby="t-meus">
+      <div class="painel-topo"><h2 id="t-meus">Meus empréstimos</h2></div>
+      <ul class="lista" id="meus"></ul>
+    </section>
+  </div>
+</main>
+<dialog id="dlg">
+  <form id="form" method="dialog">
+    <h2>Solicitar empréstimo</h2>
+    <p id="dlg-eq"></p>
+    <div class="campo"><label for="prazo">Devolver até</label><input id="prazo" type="date" required></div>
+    <div class="acoes"><button class="btn" type="button" id="cancela">Cancelar</button><button class="btn prim" type="submit">Enviar solicitação</button></div>
+  </form>
+</dialog>
+<div id="aviso" hidden></div>
+<script src="js/app.js"></script>
+<script>
+const U = Auth.guard(false);
+let EQ = [], EM = [], alvo = null;
+if (U) { montarTopo(U); carregar(); }
+
+async function carregar() {
+  try { [EQ, EM] = await Promise.all([api("GET", EP.equip), api("GET", EP.emp)]); desenhar(); }
+  catch (e) { aviso(e.message, true); }
+}
+function desenhar() {
+  const q = $("busca").value.toLowerCase();
+  const itens = EQ.filter(e => e.status_equipamento !== "baixado" && [e.nome, e.marca, e.modelo, e.patrimonio].join(" ").toLowerCase().includes(q));
+  $("catalogo").innerHTML = itens.map(e => `<article class="item">${tag(e.patrimonio)}
+    <h3>${esc(e.nome)}</h3><small>${esc(e.marca)} · ${esc(e.modelo)}</small>${badge(e.status_equipamento)}
+    <button class="btn prim" data-id="${e.id_equipamento}" ${e.status_equipamento !== "disponivel" ? "disabled" : ""}>Solicitar</button></article>`).join("")
+    || `<p class="vazio">Nenhum equipamento encontrado.</p>`;
+  const meus = EM.filter(m => m.id_usuario_solicitante === U.id).sort((a, b) => new Date(b.data_solicitacao) - new Date(a.data_solicitacao));
+  $("meus").innerHTML = meus.map(m => {
+    const eq = EQ.find(e => e.id_equipamento === m.id_equipamento) || {};
+    return `<li class="linha">${tag(eq.patrimonio || "—")}<div class="info"><strong>${esc(eq.nome || "Equipamento removido")}</strong>
+      <small>Pedido em ${fmt(m.data_solicitacao)} · devolver até ${fmt(m.prazo_devolucao)}</small></div>${badge(statusEmp(m))}</li>`;
+  }).join("") || `<li class="vazio">Você ainda não pediu nenhum equipamento. Escolha um disponível ao lado.</li>`;
+}
+$("busca").oninput = desenhar;
+$("catalogo").onclick = e => {
+  const b = e.target.closest("button[data-id]"); if (!b) return;
+  alvo = EQ.find(x => x.id_equipamento === Number(b.dataset.id));
+  $("dlg-eq").textContent = `${alvo.patrimonio} · ${alvo.nome}`;
+  const d = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
+  $("prazo").value = d; $("prazo").min = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
+  $("dlg").showModal();
+};
+$("cancela").onclick = () => $("dlg").close();
+$("form").onsubmit = async e => {
+  e.preventDefault();
+  try {
+    await api("POST", EP.emp, { id_equipamento: alvo.id_equipamento, id_usuario_solicitante: U.id,
+      prazo_devolucao: $("prazo").value + "T23:59:00", status_solicitacao: "pendente" });
+    $("dlg").close(); aviso("Solicitação enviada. Aguarde a aprovação do gestor."); carregar();
+  } catch (err) { aviso(err.message, true); }
+};
+</script>
+</body>
+</html>

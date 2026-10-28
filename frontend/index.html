@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entrar — Cadê o equipamento?</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<main class="login">
+  <section class="marca escuro">
+    <h1>Cadê o equipamento?</h1>
+    <p>Peça emprestado, acompanhe o prazo e devolva. Cada equipamento tem um patrimônio e cada empréstimo, um responsável.</p>
+    <div class="pilha" aria-hidden="true">
+      <div><span class="tag">PAT-0412</span> Notebook Dell <span class="badge s-disponivel" style="color:var(--tinta)">Disponível</span></div>
+      <div><span class="tag">PAT-0208</span> Projetor BenQ <span class="badge s-emprestado" style="color:var(--tinta)">Emprestado</span></div>
+    </div>
+  </section>
+  <section class="form">
+    <form id="form" novalidate>
+      <h2>Entrar</h2>
+      <div class="campo"><label for="login">Login</label><input id="login" name="login" type="text" autocomplete="username" required minlength="10"></div>
+      <div class="campo"><label for="senha">Senha</label><input id="senha" name="senha" type="password" autocomplete="current-password" required></div>
+      <p id="msg" class="erro" role="alert"></p>
+      <button class="btn prim" id="btn" type="submit">Entrar</button>
+      <p class="dica" id="dica" hidden>Modo demonstração. Solicitante: ana.souza@escola.com · Gestor: gestor@escola.com · Administrador: admin@escola.com. Senha: senha1234</p>
+    </form>
+  </section>
+</main>
+<div id="aviso" hidden></div>
+<script src="js/app.js"></script>
+<script>
+if (CONFIG.MOCK) $("dica").hidden = false;
+if (Auth.user()) location.href = Auth.isAdmin(Auth.user()) ? "admin.html" : "usuario.html";
+$("form").onsubmit = async e => {
+  e.preventDefault();
+  const f = e.target; $("msg").textContent = "";
+  if (!f.login.value.trim() || !f.senha.value) { $("msg").textContent = "Informe o login e a senha."; return; }
+  $("btn").disabled = true;
+  try {
+    const d = await api("POST", EP.login, { login: f.login.value.trim(), senha: f.senha.value });
+    sessionStorage.setItem("tk", typeof d === "string" ? d : d.access_token);
+    sessionStorage.setItem("nome", d?.usuario?.nome || f.login.value.split("@")[0]);
+    location.href = Auth.isAdmin(Auth.user()) ? "admin.html" : "usuario.html";
+  } catch (err) { $("msg").textContent = err.message; }
+  finally { $("btn").disabled = false; }
+};
+</script>
+</body>
+</html>

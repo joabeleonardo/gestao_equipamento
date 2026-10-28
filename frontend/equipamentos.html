@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Equipamentos — Cadê o equipamento?</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="demo" id="demo" hidden>Modo demonstração: os dados ficam só neste navegador.</div>
+<header class="topo">
+  <strong>Cadê o equipamento? · Gestão</strong>
+  <div class="quem"><span id="nome"></span><button class="btn" id="sair">Sair</button></div>
+</header>
+<nav class="abas" id="abas" aria-label="Navegação principal"></nav>
+<main class="pagina">
+  <section class="painel" aria-labelledby="t-eq">
+    <div class="painel-topo">
+      <h2 id="t-eq">Equipamentos</h2>
+      <input class="busca" id="busca" type="search" placeholder="Buscar por nome, marca ou patrimônio" aria-label="Buscar equipamento">
+      <select class="busca" id="filtro" aria-label="Filtrar por status">
+        <option value="">Todos os status</option><option value="disponivel">Disponíveis</option><option value="emprestado">Emprestados</option>
+        <option value="manutencao">Em manutenção</option><option value="baixado">Baixados (inativos)</option>
+      </select>
+      <button class="btn prim" id="novo" hidden>Cadastrar equipamento</button>
+    </div>
+    <ul class="lista" id="eqs"></ul>
+  </section>
+</main>
+<dialog id="dlg-eq">
+  <form id="f-eq" method="dialog">
+    <h2 id="eq-titulo">Cadastrar equipamento</h2>
+    <div class="campo"><label for="patrimonio">Patrimônio</label><input id="patrimonio" required minlength="4" maxlength="100"></div>
+    <div class="campo"><label for="nome-eq">Nome</label><input id="nome-eq" required minlength="4" maxlength="100"></div>
+    <div class="campo"><label for="modelo">Modelo</label><input id="modelo" required minlength="5" maxlength="100"></div>
+    <div class="campo"><label for="marca">Marca</label><input id="marca" required minlength="2" maxlength="100"></div>
+    <div class="campo"><label for="categoria">Categoria</label><select id="categoria" required></select></div>
+    <div class="campo" id="campo-status"><label for="status">Status</label><select id="status"></select>
+      <span class="suave" id="dica-status" hidden>Equipamento emprestado: o status muda sozinho quando a devolução é registrada.</span></div>
+    <div class="acoes"><button class="btn" type="button" data-fecha>Cancelar</button><button class="btn prim" type="submit">Salvar equipamento</button></div>
+  </form>
+</dialog>
+<div id="aviso" hidden></div>
+<script src="js/app.js"></script>
+<script>
+const U = Auth.guard(true);
+const ADM = Auth.ehAdministrador(U); // só o Administrador cadastra, edita e exclui
+let EQ = [], CT = [], editando = null;
+if (U) {
+  montarTopo(U); $("novo").hidden = !ADM;
+  const h = location.hash.slice(1); // vindo dos contadores do dashboard: equipamentos.html#manutencao
+  if (["disponivel", "emprestado", "manutencao", "baixado"].includes(h)) $("filtro").value = h;
+  carregar();
+}
+
+async function carregar() {
+  try { [EQ, CT] = await Promise.all([api("GET", EP.equip), api("GET", EP.cat)]); desenhar(); }
+  catch (e) { aviso(e.message, true); }
+}
+// o Administrador troca o status direto na lista (disponível, manutenção ou baixado/inativo)
+function seletorStatus(e) {
+  const fixo = e.status_equipamento === "emprestado"; // quem muda é o empréstimo, não o administrador
+  const ops = fixo ? ["emprestado"] : ["disponivel", "manutencao", "baixado"];
+  return `<select class="sel-status" data-a="status" data-s="${e.status_equipamento}" data-id="${e.id_equipamento}" aria-label="Status de ${esc(e.nome)}"${fixo ? ' disabled title="Controlado pelos empréstimos"' : ""}>
+    ${ops.map(s => `<option value="${s}"${s === e.status_equipamento ? " selected" : ""}>${ROTULO[s]}</option>`).join("")}</select>`;
+}
+const catNome = id => (CT.find(c => c.id_categoria === id) || {}).nome || "Sem categoria";
+
+function desenhar() {
+  const q = $("busca").value.toLowerCase(), f = $("filtro").value;
+  $("eqs").innerHTML = EQ.filter(e => (!f || e.status_equipamento === f) && [e.nome, e.marca, e.modelo, e.patrimonio].join(" ").toLowerCase().includes(q)).map(e => `
+    <li class="linha">${tag(e.patrimonio)}<div class="info"><strong>${esc(e.nome)}</strong>
+      <small>${esc(e.marca)} · ${esc(e.modelo)} · ${esc(catNome(e.id_categoria))}</small></div>${ADM ? seletorStatus(e) : badge(e.status_equipamento)}
+      ${ADM ? `<div class="acoes"><button class="btn" data-a="editar" data-id="${e.id_equipamento}">Editar</button><button class="btn perigo" data-a="excluir" data-id="${e.id_equipamento}">Excluir</button></div>` : "<span></span>"}</li>`).join("")
+    || `<li class="vazio">Nenhum equipamento encontrado.</li>`;
+}
+$("busca").oninput = desenhar; $("filtro").onchange = desenhar;
+
+function abrir(eq) {
+  editando = eq || null;
+  $("f-eq").reset();
+  $("eq-titulo").textContent = eq ? "Editar equipamento" : "Cadastrar equipamento";
+  $("categoria").innerHTML = CT.map(c => `<option value="${c.id_categoria}">${esc(c.nome)}</option>`).join("");
+  $("campo-status").hidden = !eq; // novo equipamento sempre nasce disponível
+  if (eq) {
+    $("patrimonio").value = eq.patrimonio; $("nome-eq").value = eq.nome; $("modelo").value = eq.modelo; $("marca").value = eq.marca;
+    $("categoria").value = eq.id_categoria;
+    const emprestado = eq.status_equipamento === "emprestado";
+    $("status").innerHTML = (emprestado ? ["emprestado"] : ["disponivel", "manutencao", "baixado"])
+      .map(s => `<option value="${s}">${ROTULO[s]}</option>`).join("");
+    $("status").value = eq.status_equipamento; $("status").disabled = emprestado; $("dica-status").hidden = !emprestado;
+  }
+  $("dlg-eq").showModal();
+}
+$("novo").onclick = () => abrir(null);
+$("eqs").onchange = async ev => {
+  const s = ev.target.closest("select[data-a=status]"); if (!s || !ADM) return;
+  const eq = EQ.find(x => x.id_equipamento === Number(s.dataset.id)), novo = s.value;
+  if (novo === "baixado" && !confirm(`Baixar (inativar) ${eq.patrimonio} · ${eq.nome}? Ele deixa de aparecer para os solicitantes.`)) { s.value = eq.status_equipamento; return; }
+  try { await api("PUT", EP.equip + "/" + eq.id_equipamento, { ...eq, status_equipamento: novo }); aviso("Status atualizado: " + ROTULO[novo] + "."); carregar(); }
+  catch (err) { aviso(err.message, true); s.value = eq.status_equipamento; }
+};
+$("eqs").onclick = async e => {
+  const b = e.target.closest("button[data-a]"); if (!b || !ADM) return;
+  const eq = EQ.find(x => x.id_equipamento === Number(b.dataset.id));
+  if (b.dataset.a === "editar") return abrir(eq);
+  if (!confirm(`Excluir ${eq.patrimonio} · ${eq.nome}?`)) return;
+  try { await api("DELETE", EP.equip + "/" + eq.id_equipamento); aviso("Equipamento excluído."); carregar(); }
+  catch (err) { aviso(err.message, true); }
+};
+$("f-eq").onsubmit = async e => {
+  e.preventDefault();
+  const dados = { patrimonio: $("patrimonio").value.trim(), nome: $("nome-eq").value.trim(), modelo: $("modelo").value.trim(),
+    marca: $("marca").value.trim(), id_categoria: Number($("categoria").value) };
+  try {
+    if (editando) await api("PUT", EP.equip + "/" + editando.id_equipamento, { ...editando, ...dados, status_equipamento: $("status").value });
+    else await api("POST", EP.equip, { ...dados, status_equipamento: "disponivel" });
+    $("dlg-eq").close(); aviso(editando ? "Equipamento atualizado." : "Equipamento cadastrado."); carregar();
+  } catch (err) { aviso(err.message, true); }
+};
+document.querySelectorAll("[data-fecha]").forEach(b => b.onclick = () => b.closest("dialog").close());
+</script>
+</body>
+</html>

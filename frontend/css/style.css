@@ -1,0 +1,138 @@
+/* Cadê o Equipamento? — estilos (somente Flexbox e Grid, sem bibliotecas) */
+:root{--fundo:#e9edf1;--sup:#fff;--tinta:#17202a;--suave:#5b6773;--linha:#cfd6dd;--azul:#1d4ed8;--azul-esc:#1639a8;--tag:#ffe066;
+--ok:#1e8e5a;--uso:#1d4ed8;--alerta:#b7791f;--erro:#c0392b;--neutro:#6b6f85;
+--fonte:"Bahnschrift","DIN Alternate","Segoe UI",system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--fonte);background:var(--fundo);color:var(--tinta);line-height:1.5;min-height:100vh}
+h1,h2,h3{line-height:1.15;margin:0}
+h2{font-size:1.25rem;font-weight:700}
+small,.suave{color:var(--suave)}
+:focus-visible{outline:3px solid var(--azul);outline-offset:2px}
+
+/* botões e formulários */
+.btn{font:inherit;font-weight:600;border:2px solid var(--tinta);background:var(--sup);color:var(--tinta);padding:.5rem 1rem;border-radius:4px;cursor:pointer}
+.btn:hover{background:var(--tinta);color:#fff}
+.btn.prim{background:var(--azul);border-color:var(--azul);color:#fff}
+.btn.prim:hover{background:var(--azul-esc);border-color:var(--azul-esc)}
+.btn.perigo{border-color:var(--erro);color:var(--erro)}
+.btn.perigo:hover{background:var(--erro);color:#fff}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.campo{display:flex;flex-direction:column;gap:.3rem;margin-bottom:1rem}
+.campo label{font-weight:600}
+.campo input,.campo select{font:inherit;padding:.6rem .7rem;border:2px solid var(--linha);border-radius:4px;background:#fff;min-width:0}
+.campo input:focus,.campo select:focus{border-color:var(--azul)}
+.erro{color:var(--erro);min-height:1.5rem;margin:0 0 .5rem}
+
+/* etiqueta de patrimônio: o elemento-assinatura do sistema */
+.tag{--furo:#fff;display:inline-block;font-weight:700;letter-spacing:.02em;color:var(--tinta);white-space:nowrap;
+ padding:.3rem .8rem .3rem 1.6rem;border-radius:3px 10px 10px 3px;
+ background:radial-gradient(circle at .75rem 50%,var(--furo) 0 .2rem,transparent .22rem),var(--tag)}
+.escuro .tag{--furo:var(--tinta)}
+
+/* status */
+.badge{display:inline-block;font-weight:600;font-size:.9rem;padding:.1rem .6rem;border-left:5px solid var(--neutro);background:#f2f4f6}
+.s-disponivel,.s-devolvido{border-color:var(--ok)}
+.s-emprestado,.s-aprovada{border-color:var(--uso)}
+.s-pendente,.s-manutencao{border-color:var(--alerta)}
+.s-negada,.s-atrasada,.s-baixado{border-color:var(--erro)}
+
+/* cabeçalho dos dashboards */
+.topo{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem 1.5rem;background:var(--tinta);color:#fff;padding:.9rem clamp(1rem,4vw,2.5rem)}
+.topo strong{font-size:1.2rem}
+.topo .quem{display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
+.topo .btn{background:transparent;color:#fff;border-color:#fff}
+.topo .btn:hover{background:#fff;color:var(--tinta)}
+.demo{background:var(--tag);color:var(--tinta);text-align:center;padding:.3rem 1rem;font-size:.9rem}
+
+/* conteúdo */
+.pagina{padding:clamp(1rem,4vw,2.5rem);max-width:90rem;margin:0 auto}
+.resumo{display:flex;flex-wrap:wrap;gap:.5rem 2.5rem;margin:0 0 1.5rem;padding:0}
+.resumo div{display:flex;align-items:baseline;gap:.5rem}
+.resumo dt{color:var(--suave)}
+.resumo dd{margin:0;font-size:1.6rem;font-weight:700}
+.grade-admin{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:1.5rem;align-items:start}
+.grade-user{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:1.5rem;align-items:start}
+.grade-perfil{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:1.5rem;align-items:start}
+a.btn{display:inline-block;text-decoration:none}
+.chips{display:flex;flex-wrap:wrap;gap:.5rem}
+.dica-campo{font-size:.9rem;color:var(--suave)}
+.painel{background:var(--sup);border:1px solid var(--linha);padding:1.25rem}
+.painel-topo{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:1rem}
+.busca{font:inherit;padding:.5rem .7rem;border:2px solid var(--linha);border-radius:4px;flex:1 1 12rem;min-width:0}
+.lista{list-style:none;margin:0;padding:0}
+.linha{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:.5rem 1rem;padding:.8rem 0;border-top:1px solid var(--linha)}
+.linha:first-child{border-top:0}
+.linha.dois{grid-template-columns:minmax(0,1fr) auto}
+.painel.largo{grid-column:1/-1}
+.linha .info{display:flex;flex-direction:column;min-width:0}
+.acoes{display:flex;flex-wrap:wrap;gap:.4rem;justify-content:flex-end}
+.acoes .btn{padding:.3rem .7rem;font-size:.9rem}
+.catalogo{display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));gap:1rem}
+.item{display:flex;flex-direction:column;gap:.5rem;align-items:flex-start;border:1px solid var(--linha);padding:1rem}
+.item .btn{margin-top:auto}
+.vazio{color:var(--suave);padding:1rem 0}
+
+/* diálogo e aviso */
+dialog{border:2px solid var(--tinta);border-radius:6px;padding:1.5rem;width:min(28rem,92vw);font-family:var(--fonte)}
+dialog::backdrop{background:rgba(23,32,42,.6)}
+dialog .acoes{margin-top:.5rem}
+#aviso{position:fixed;left:50%;bottom:1rem;transform:translateX(-50%);background:var(--tinta);color:#fff;padding:.7rem 1.2rem;border-left:6px solid var(--ok);max-width:92vw}
+#aviso.erro-aviso{border-color:var(--erro)}
+#aviso[hidden]{display:none}
+
+/* login */
+.login{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);min-height:100vh}
+.login .marca{display:flex;flex-direction:column;justify-content:center;gap:1.5rem;background:var(--tinta);color:#fff;padding:clamp(1.5rem,6vw,5rem)}
+.login .marca h1{font-size:clamp(2.2rem,5vw,3.8rem);font-weight:800}
+.login .marca p{max-width:30rem;font-size:1.1rem;margin:0;color:#cfd6dd}
+.pilha{display:flex;flex-direction:column;gap:.6rem;align-items:flex-start}
+.pilha div{display:flex;flex-wrap:wrap;align-items:center;gap:.8rem}
+.login .form{display:flex;align-items:center;justify-content:center;padding:clamp(1.5rem,5vw,3rem);background:var(--sup)}
+.login form{width:min(24rem,100%)}
+.login form h2{font-size:1.7rem;margin-bottom:1.5rem}
+.login form .btn{width:100%;padding:.75rem}
+.dica{font-size:.9rem;color:var(--suave);margin-top:1.5rem;border-top:1px solid var(--linha);padding-top:1rem}
+
+/* responsividade */
+@media (max-width:56rem){
+ .grade-admin,.grade-user,.grade-perfil{grid-template-columns:minmax(0,1fr)}
+ .login{grid-template-columns:minmax(0,1fr);min-height:0}
+ .login .marca{padding:2rem 1.25rem}
+}
+@media (max-width:40rem){
+ .linha{grid-template-columns:auto minmax(0,1fr)}
+ .linha .badge,.linha .acoes{grid-column:1/-1;justify-self:start}
+ .resumo{gap:.5rem 1.5rem}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* tela de perfis de acesso */
+.linha-perfil{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1.5fr) auto;gap:.5rem 1.5rem;align-items:center;padding:.9rem 0;border-top:1px solid var(--linha)}
+.linha-perfil:first-child{border-top:0}
+.chip{display:inline-flex;align-items:center;gap:.2rem;background:var(--tinta);color:#fff;padding:.15rem .3rem .15rem .7rem;font-weight:600;font-size:.9rem;border-radius:2px}
+.chip.fixo{padding-right:.7rem}
+.chip-x{font:inherit;font-size:1.1rem;line-height:1;background:transparent;border:0;color:#fff;cursor:pointer;padding:0 .4rem}
+.chip-x:hover{color:var(--tag)}
+.sem-perfil{color:var(--alerta);font-weight:600}
+.add{display:flex;gap:.4rem}
+.add select{font:inherit;padding:.3rem;border:2px solid var(--linha);border-radius:4px;min-width:0}
+@media (max-width:56rem){.linha-perfil{grid-template-columns:minmax(0,1fr)}}
+
+/* abas de navegação */
+.abas{display:flex;flex-wrap:wrap;background:var(--sup);border-bottom:2px solid var(--linha);padding:0 clamp(1rem,4vw,2.5rem)}
+.abas a{padding:.8rem 1.1rem;margin-bottom:-2px;color:var(--tinta);text-decoration:none;font-weight:600;border-bottom:4px solid transparent}
+.abas a:hover{background:var(--fundo)}
+.abas a[aria-current=page]{color:var(--azul);border-bottom-color:var(--azul)}
+select.busca{flex:0 1 11rem}
+@media (max-width:40rem){
+ .abas{flex-wrap:nowrap;overflow-x:auto}
+ .abas a{white-space:nowrap;padding:.8rem .9rem}
+}
+
+/* status do equipamento + contadores */
+.sel-status{font:inherit;font-weight:600;font-size:.9rem;padding:.15rem .4rem;border:1px solid var(--linha);border-left:5px solid var(--neutro);background:#f2f4f6;border-radius:0;min-width:0}
+.sel-status[data-s=disponivel]{border-left-color:var(--ok)}
+.sel-status[data-s=emprestado]{border-left-color:var(--uso)}
+.sel-status[data-s=manutencao]{border-left-color:var(--alerta)}
+.sel-status[data-s=baixado]{border-left-color:var(--erro)}
+.resumo dt a{color:var(--suave);text-decoration:underline dotted}

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meu perfil — Cadê o equipamento?</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="demo" id="demo" hidden>Modo demonstração: os dados ficam só neste navegador.</div>
+<header class="topo">
+  <strong>Cadê o equipamento? · Meu perfil</strong>
+  <div class="quem"><span id="nome"></span><button class="btn" id="sair">Sair</button></div>
+</header>
+<nav class="abas" id="abas" aria-label="Navegação principal"></nav>
+<main class="pagina">
+  <div class="grade-perfil">
+    <section class="painel" aria-labelledby="t-dados">
+      <div class="painel-topo"><h2 id="t-dados">Meus dados</h2></div>
+      <form id="f-dados">
+        <div class="campo"><label for="nome-p">Nome completo</label><input id="nome-p" required minlength="6" maxlength="200" autocomplete="name"></div>
+        <div class="campo"><label for="tel">Telefone (com DDD)</label><input id="tel" type="tel" required minlength="11" maxlength="20" autocomplete="tel"></div>
+        <div class="campo"><label for="login">Login</label><input id="login" required minlength="10" maxlength="255" autocomplete="username"></div>
+        <div class="campo"><span><strong>Perfil de acesso</strong></span><div class="chips" id="perfis"></div>
+          <span class="dica-campo">O perfil de acesso só pode ser alterado pelo administrador.</span></div>
+        <button class="btn prim" type="submit">Salvar alterações</button>
+      </form>
+    </section>
+    <section class="painel" aria-labelledby="t-senha">
+      <div class="painel-topo"><h2 id="t-senha">Alterar senha</h2></div>
+      <form id="f-senha">
+        <div class="campo"><label for="atual">Senha atual</label><input id="atual" type="password" required autocomplete="current-password"></div>
+        <div class="campo"><label for="nova">Nova senha</label><input id="nova" type="password" required minlength="8" maxlength="255" autocomplete="new-password"><span class="dica-campo">Mínimo de 8 caracteres.</span></div>
+        <div class="campo"><label for="conf">Confirmar nova senha</label><input id="conf" type="password" required minlength="8" autocomplete="new-password"></div>
+        <p class="erro" id="erro-senha" role="alert"></p>
+        <button class="btn prim" type="submit">Alterar senha</button>
+      </form>
+    </section>
+  </div>
+</main>
+<div id="aviso" hidden></div>
+<script src="js/app.js"></script>
+<script>
+const U = Auth.user();
+if (!U) location.href = "index.html"; // qualquer perfil logado pode acessar
+else { montarTopo(U); iniciar(); }
+
+async function iniciar() {
+  $("perfis").innerHTML = U.roles.map(r => `<span class="badge">${esc(r)}</span>`).join("") || `<span class="suave">Nenhum perfil vinculado ainda.</span>`;
+  try {
+    const d = await api("GET", EP.me);
+    $("nome-p").value = d.nome; $("tel").value = d.telefone || ""; $("login").value = d.login;
+  } catch (e) { aviso(e.message, true); }
+}
+$("f-dados").onsubmit = async e => {
+  e.preventDefault();
+  try {
+    const d = await api("PUT", EP.me, { nome: $("nome-p").value.trim(), telefone: $("tel").value.trim(), login: $("login").value.trim() });
+    sessionStorage.setItem("nome", d.nome); $("nome").textContent = d.nome;
+    aviso("Dados atualizados.");
+  } catch (err) { aviso(err.message, true); }
+};
+$("f-senha").onsubmit = async e => {
+  e.preventDefault(); $("erro-senha").textContent = "";
+  if ($("nova").value !== $("conf").value) { $("erro-senha").textContent = "A confirmação não é igual à nova senha."; return; }
+  if ($("nova").value === $("atual").value) { $("erro-senha").textContent = "A nova senha deve ser diferente da atual."; return; }
+  try {
+    await api("PUT", EP.me, { senha_atual: $("atual").value, nova_senha: $("nova").value });
+    e.target.reset(); aviso("Senha alterada com sucesso.");
+  } catch (err) { $("erro-senha").textContent = err.message; }
+};
+</script>
+</body>
+</html>

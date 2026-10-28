@@ -1,0 +1,22 @@
+# Segredos e configurações locais
+.env
+**/.env
+
+# Ambientes virtuais Python
+app/Include/
+app/Lib/
+app/Scripts/
+app/pyvenv.cfg
+
+# Arquivos temporários do Python e testes
+__pycache__/
+*.py[cod]
+.pytest_cache/
+**/.pytest_cache/
+
+# Configurações locais do editor
+.vscode/
+
+# Cópias e metadados de segurança
+app_backup/
+app_git_metadata_backup/

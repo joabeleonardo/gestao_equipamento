@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Perfis de acesso — Cadê o equipamento?</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="demo" id="demo" hidden>Modo demonstração: os dados ficam só neste navegador.</div>
+<header class="topo">
+  <strong>Cadê o equipamento? · Perfis de acesso</strong>
+  <div class="quem"><span id="nome"></span><button class="btn" id="sair">Sair</button></div>
+</header>
+<nav class="abas" id="abas" aria-label="Navegação principal"></nav>
+<main class="pagina">
+  <section class="painel" aria-labelledby="t-perfis">
+    <div class="painel-topo">
+      <h2 id="t-perfis">Quem pode o quê</h2>
+      <input class="busca" id="busca" type="search" placeholder="Buscar por nome ou login" aria-label="Buscar usuário">
+    </div>
+    <p class="suave">O perfil define o que cada usuário consegue fazer. Quem está sem perfil não consegue usar o sistema.</p>
+    <ul class="lista" id="lista"></ul>
+  </section>
+</main>
+<div id="aviso" hidden></div>
+<script src="js/app.js"></script>
+<script>
+const U = Auth.user();
+let US = [], NV = [], VC = [];
+if (!U) location.href = "index.html";
+else if (!Auth.ehAdministrador(U)) location.href = Auth.isAdmin(U) ? "admin.html" : "usuario.html"; // só o Administrador
+else { montarTopo(U); carregar(); }
+
+const uid = u => u.id ?? u.id_usuario;
+async function carregar() {
+  try { [US, NV, VC] = await Promise.all([api("GET", EP.usr), api("GET", EP.niveis), api("GET", EP.vinc)]); desenhar(); }
+  catch (e) { aviso(e.message, true); }
+}
+function desenhar() {
+  const q = $("busca").value.toLowerCase();
+  $("lista").innerHTML = US.filter(u => (u.nome + " " + u.login).toLowerCase().includes(q)).map(u => {
+    const id = uid(u), eu = id === U.id;
+    const meus = VC.filter(v => v.acesso_id_usuario === id).map(v => NV.find(n => n.id_nivel_acesso === v.acesso_id_nivel_acesso)).filter(Boolean);
+    const livres = NV.filter(n => !meus.includes(n));
+    const chips = meus.map(n => eu
+      ? `<span class="chip fixo">${esc(n.nivel)}</span>`
+      : `<span class="chip">${esc(n.nivel)}<button class="chip-x" data-a="rem" data-u="${id}" data-n="${n.id_nivel_acesso}" aria-label="Remover o perfil ${esc(n.nivel)} de ${esc(u.nome)}">×</button></span>`).join("")
+      || `<span class="sem-perfil">Sem perfil de acesso</span>`;
+    const add = livres.length ? `<div class="add"><select id="sel-${id}" aria-label="Perfil para adicionar a ${esc(u.nome)}">${livres.map(n => `<option value="${n.id_nivel_acesso}">${esc(n.nivel)}</option>`).join("")}</select>
+      <button class="btn" data-a="add" data-u="${id}">Adicionar</button></div>` : "<span></span>";
+    return `<li class="linha-perfil"><div class="info"><strong>${esc(u.nome)}${eu ? " (você)" : ""}</strong><small>${esc(u.login)}</small></div>
+      <div class="chips">${chips}</div>${add}</li>`;
+  }).join("") || `<li class="vazio">Nenhum usuário encontrado.</li>`;
+}
+$("busca").oninput = desenhar;
+$("lista").onclick = async e => {
+  const b = e.target.closest("button[data-a]"); if (!b) return;
+  const idU = Number(b.dataset.u), usr = US.find(x => uid(x) === idU);
+  try {
+    if (b.dataset.a === "add") {
+      await api("POST", EP.vincNovo, { acesso_id_usuario: idU, acesso_id_nivel_acesso: Number($("sel-" + idU).value) });
+      aviso("Perfil adicionado.");
+    } else {
+      const nv = NV.find(n => n.id_nivel_acesso === Number(b.dataset.n));
+      if (!confirm(`Remover o perfil ${nv.nivel} de ${usr.nome}?`)) return;
+      await api("DELETE", EP.vincDel + "/" + idU + "/" + nv.id_nivel_acesso);
+      aviso("Perfil removido.");
+    }
+    carregar();
+  } catch (err) { aviso(err.message, true); }
+};
+</script>
+</body>
+</html>

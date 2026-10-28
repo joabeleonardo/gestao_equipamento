@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Empréstimos — Cadê o equipamento?</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="demo" id="demo" hidden>Modo demonstração: os dados ficam só neste navegador.</div>
+<header class="topo">
+  <strong>Cadê o equipamento? · Gestão</strong>
+  <div class="quem"><span id="nome"></span><button class="btn" id="sair">Sair</button></div>
+</header>
+<nav class="abas" id="abas" aria-label="Navegação principal"></nav>
+<main class="pagina">
+  <dl class="resumo" id="resumo"></dl>
+  <section class="painel" aria-labelledby="t-emp">
+    <div class="painel-topo">
+      <h2 id="t-emp">Empréstimos e devoluções</h2>
+      <select class="busca" id="filtro" aria-label="Filtrar por status">
+        <option value="">Todos</option><option value="pendente">Pendentes</option><option value="aprovada">Em uso</option>
+        <option value="atrasada">Atrasados</option><option value="devolvido">Devolvidos</option><option value="negada">Negados</option>
+      </select>
+    </div>
+    <ul class="lista" id="emps"></ul>
+  </section>
+</main>
+<dialog id="dlg-aprova">
+  <form id="f-aprova" method="dialog">
+    <h2>Aprovar empréstimo</h2>
+    <p id="aprova-info"></p>
+    <div class="campo"><label for="prazo">Prazo de devolução</label><input id="prazo" type="date" required></div>
+    <div class="acoes"><button class="btn" type="button" data-fecha>Cancelar</button><button class="btn prim" type="submit">Aprovar</button></div>
+  </form>
+</dialog>
+<div id="aviso" hidden></div>
+<script src="js/app.js"></script>
+<script>
+const U = Auth.guard(true);
+let EQ = [], EM = [], US = [], atual = null;
+if (U) { montarTopo(U); carregar(); }
+
+async function carregar() {
+  try {
+    [EQ, EM] = await Promise.all([api("GET", EP.equip), api("GET", EP.emp)]);
+    US = await api("GET", EP.usr).catch(() => []);
+    desenhar();
+  } catch (e) { aviso(e.message, true); }
+}
+const eqDe = m => EQ.find(e => e.id_equipamento === m.id_equipamento) || {};
+const nomeUsr = id => (US.find(u => (u.id ?? u.id_usuario) === id) || {}).nome || "Usuário #" + id;
+
+function desenhar() {
+  const st = EM.map(statusEmp), n = s => st.filter(x => x === s).length;
+  const eqn = s => EQ.filter(e => e.status_equipamento === s).length;
+  $("resumo").innerHTML = [["Pendentes", n("pendente")], ["Em uso", n("aprovada")], ["Atrasados", n("atrasada")]]
+    .map(([t, v]) => `<div><dt>${t}</dt><dd>${v}</dd></div>`).join("")
+    + [["Disponíveis", "disponivel"], ["Em manutenção", "manutencao"], ["Baixados (inativos)", "baixado"]]
+    .map(([t, s]) => `<div><dt><a href="equipamentos.html#${s}">${t}</a></dt><dd>${eqn(s)}</dd></div>`).join("");
+
+  const ordem = m => statusEmp(m) === "pendente" ? 0 : statusEmp(m) === "atrasada" ? 1 : 2;
+  const filtro = $("filtro").value;
+  $("emps").innerHTML = EM.filter(m => !filtro || statusEmp(m) === filtro)
+    .sort((a, b) => ordem(a) - ordem(b) || new Date(b.data_solicitacao) - new Date(a.data_solicitacao)).map(m => {
+    const s = statusEmp(m), eq = eqDe(m);
+    const acoes = s === "pendente"
+      ? `<button class="btn prim" data-a="aprovar" data-id="${m.id_emprestimo}">Aprovar</button><button class="btn perigo" data-a="negar" data-id="${m.id_emprestimo}">Negar</button>`
+      : (s === "aprovada" || s === "atrasada") ? `<button class="btn" data-a="devolver" data-id="${m.id_emprestimo}">Registrar devolução</button>` : "";
+    return `<li class="linha">${tag(eq.patrimonio || "—")}<div class="info"><strong>${esc(eq.nome || "Equipamento removido")}</strong>
+      <small>${esc(nomeUsr(m.id_usuario_solicitante))} · pedido em ${fmt(m.data_solicitacao)} · prazo ${fmt(m.prazo_devolucao)}</small></div>
+      ${badge(s)}<div class="acoes">${acoes}</div></li>`;
+  }).join("") || `<li class="vazio">Nenhum empréstimo para mostrar.</li>`;
+}
+$("filtro").onchange = desenhar;
+
+// o PUT do backend espera o modelo inteiro; o servidor só aceita status e prazo
+async function atualizar(m, campos, msg) {
+  try { await api("PUT", EP.emp + "/" + m.id_emprestimo, { ...m, ...campos }); aviso(msg); carregar(); }
+  catch (err) { aviso(err.message, true); }
+}
+$("emps").onclick = e => {
+  const b = e.target.closest("button[data-a]"); if (!b) return;
+  atual = EM.find(m => m.id_emprestimo === Number(b.dataset.id));
+  if (b.dataset.a === "aprovar") {
+    $("aprova-info").textContent = `${eqDe(atual).nome} para ${nomeUsr(atual.id_usuario_solicitante)}`;
+    $("prazo").value = (atual.prazo_devolucao || new Date(Date.now() + 7 * 864e5).toISOString()).slice(0, 10);
+    $("dlg-aprova").showModal();
+  }
+  if (b.dataset.a === "negar") atualizar(atual, { status_solicitacao: "negada" }, "Empréstimo negado.");
+  if (b.dataset.a === "devolver") atualizar(atual, { status_solicitacao: "devolvido", data_devolucao: new Date().toISOString() }, "Devolução registrada.");
+};
+$("f-aprova").onsubmit = e => {
+  e.preventDefault(); $("dlg-aprova").close();
+  atualizar(atual, { status_solicitacao: "aprovada", id_usuario_aprovador: U.id,
+    data_aprovacao: new Date().toISOString(), prazo_devolucao: $("prazo").value + "T23:59:00" }, "Empréstimo aprovado.");
+};
+document.querySelectorAll("[data-fecha]").forEach(b => b.onclick = () => b.closest("dialog").close());
+</script>
+</body>
+</html>

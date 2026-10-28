@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Usuários — Cadê o equipamento?</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="demo" id="demo" hidden>Modo demonstração: os dados ficam só neste navegador.</div>
+<header class="topo">
+  <strong>Cadê o equipamento? · Gestão</strong>
+  <div class="quem"><span id="nome"></span><button class="btn" id="sair">Sair</button></div>
+</header>
+<nav class="abas" id="abas" aria-label="Navegação principal"></nav>
+<main class="pagina">
+  <section class="painel" aria-labelledby="t-usr">
+    <div class="painel-topo">
+      <h2 id="t-usr">Usuários</h2>
+      <input class="busca" id="busca" type="search" placeholder="Buscar por nome ou login" aria-label="Buscar usuário">
+      <button class="btn prim" id="novo-usr">Cadastrar usuário</button>
+    </div>
+    <ul class="lista" id="usrs"></ul>
+  </section>
+</main>
+<dialog id="dlg-usr">
+  <form id="f-usr" method="dialog">
+    <h2 id="usr-titulo">Cadastrar usuário</h2>
+    <div class="campo"><label for="u-nome">Nome completo</label><input id="u-nome" required minlength="6" maxlength="200" autocomplete="off"></div>
+    <div class="campo"><label for="u-tel">Telefone (com DDD)</label><input id="u-tel" type="tel" required minlength="11" maxlength="20" autocomplete="off"></div>
+    <div class="campo"><label for="u-login">Login</label><input id="u-login" required minlength="10" maxlength="255" autocomplete="off"></div>
+    <div class="campo"><label for="u-senha">Senha</label><input id="u-senha" type="password" required minlength="8" maxlength="255" autocomplete="new-password"></div>
+    <div class="acoes"><button class="btn" type="button" data-fecha>Cancelar</button><button class="btn prim" type="submit">Salvar usuário</button></div>
+  </form>
+</dialog>
+<div id="aviso" hidden></div>
+<script src="js/app.js"></script>
+<script>
+const U = Auth.guard(true);
+const ADM = Auth.ehAdministrador(U); // Gestor cadastra e edita; só o Administrador exclui
+let US = [], editandoUsr = null;
+if (U) { montarTopo(U); carregar(); }
+
+const uid = u => u.id ?? u.id_usuario;
+async function carregar() {
+  try { US = await api("GET", EP.usr); desenhar(); } catch (e) { aviso(e.message, true); }
+}
+function desenhar() {
+  const q = $("busca").value.toLowerCase();
+  $("usrs").innerHTML = US.filter(u => (u.nome + " " + u.login).toLowerCase().includes(q)).map(u => `<li class="linha dois">
+    <div class="info"><strong>${esc(u.nome)}</strong><small>${esc(u.login)}</small></div>
+    <div class="acoes"><button class="btn" data-a="editar" data-id="${uid(u)}">Editar</button>${ADM ? `<button class="btn perigo" data-a="excluir" data-id="${uid(u)}">Excluir</button>` : ""}</div></li>`).join("")
+    || `<li class="vazio">Nenhum usuário encontrado.</li>`;
+}
+$("busca").oninput = desenhar;
+
+function abrir(u) {
+  editandoUsr = u ? uid(u) : null;
+  $("f-usr").reset();
+  $("usr-titulo").textContent = u ? "Editar usuário" : "Cadastrar usuário";
+  $("u-senha").required = !u;
+  $("u-senha").placeholder = u ? "Deixe em branco para manter a atual" : "";
+  if (u) { $("u-nome").value = u.nome; $("u-tel").value = u.telefone || ""; $("u-login").value = u.login; }
+  $("dlg-usr").showModal();
+}
+$("novo-usr").onclick = () => abrir(null);
+$("usrs").onclick = async e => {
+  const b = e.target.closest("button[data-a]"); if (!b) return;
+  const id = Number(b.dataset.id), u = US.find(x => uid(x) === id);
+  if (b.dataset.a === "editar") return abrir(u);
+  if (!ADM) return;
+  if (id === U.id) { aviso("Você não pode excluir o seu próprio usuário.", true); return; }
+  if (!confirm(`Excluir o usuário ${u.nome}?`)) return;
+  try { await api("DELETE", EP.usuario + "/" + id); aviso("Usuário excluído."); carregar(); }
+  catch (err) { aviso(err.message, true); }
+};
+$("f-usr").onsubmit = async e => {
+  e.preventDefault();
+  const corpo = { nome: $("u-nome").value.trim(), telefone: $("u-tel").value.trim(), login: $("u-login").value.trim() };
+  if ($("u-senha").value) corpo.senha = $("u-senha").value;
+  try {
+    if (editandoUsr) await api("PUT", EP.usuario + "/" + editandoUsr, corpo);
+    else await api("POST", EP.usuario, corpo);
+    $("dlg-usr").close();
+    aviso(editandoUsr ? "Usuário atualizado." : "Usuário cadastrado. O administrador precisa definir o perfil de acesso dele.");
+    carregar();
+  } catch (err) { aviso(err.message, true); }
+};
+document.querySelectorAll("[data-fecha]").forEach(b => b.onclick = () => b.closest("dialog").close());
+</script>
+</body>
+</html>
